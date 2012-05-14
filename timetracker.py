@@ -44,7 +44,8 @@ def start(args):
         if args.project in config['projects']:
             last = config['projects'][args.project][-1]
             if not 'stop' in last and not args.quiet:
-                print '{} in progress as of {}'.format(args.project, last['start'])
+                print '{} in progress as of {}'.format(args.project,
+                                                       last['start'])
             else:
                 config['projects'][args.project].append(new_start())
         else:
@@ -115,7 +116,8 @@ if __name__ == '__main__':
 
     p_rm = subparsers.add_parser('rm', help='delete a project')
     p_rm.add_argument('project', help='target project')
-    p_rm.add_argument('-f', '--force', action='store_true', help='do no prompt')
+    p_rm.add_argument('-f', '--force', action='store_true',
+                      help='do no prompt')
     p_rm.set_defaults(func=rm)
 
     p_list = subparsers.add_parser('list', help='list all projects')
