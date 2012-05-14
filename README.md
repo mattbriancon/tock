@@ -31,7 +31,8 @@ List all projects.
 TODO
 ========
 
+* Tests
+* setup.py and everything else needed to be on PyPi
 * View project history (as text and graphically)
-* Better argument parsing
 * Project notes
 * Integrate with PS1
