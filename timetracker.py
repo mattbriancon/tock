@@ -28,7 +28,7 @@ class Config(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if False:
-            print self.config
+            print(self.config)
 
         if self.save:
             with open(_CONFIG, 'w') as cf:
@@ -44,14 +44,14 @@ def start(args):
         if args.project in config['projects']:
             last = config['projects'][args.project][-1]
             if not 'stop' in last and not args.quiet:
-                print '{} in progress as of {}'.format(args.project,
-                                                       last['start'])
+                print('{} in progress as of {}'.format(args.project,
+                                                       last['start']))
             else:
                 config['projects'][args.project].append(new_start())
         else:
             config['projects'][args.project] = [new_start()]
             if not args.quiet:
-                print '{} (new) started'.format(args.project)
+                print('{} (new) started'.format(args.project))
 
 
 def stop(args):
@@ -59,35 +59,33 @@ def stop(args):
         if args.project in config['projects']:
             last = config['projects'][args.project][-1]
             if 'stop' in last and not args.quiet:
-                print '{} stopped as of {}'.format(args.project, last['stop'])
+                print('{} stopped as of {}'.format(args.project, last['stop']))
             else:
                 last['stop'] = str(datetime.now())
         else:
             if not args.quiet:
-                print 'No project {}'.format(args.project)
+                print('No project {}'.format(args.project))
 
 
 def rm(args):
     with Config() as config:
         if args.project in config['projects']:
             if not args.force:
-                confirm = raw_input('Remove project \'{}\'? (yes/no) '.format(args.project))
-                if not confirm == 'yes':
-                    print 'Aborted.'
-                    return
+                print('Must supply force argument (-f/--force) to delete')
+                return
 
             del config['projects'][args.project]
             if not args.quiet:
-                print 'Deleted project {}'.format(args.project)
+                print('Deleted project {}'.format(args.project))
         else:
             if not args.quiet:
-                print 'No project {}'.format(args.project)
+                print('No project {}'.format(args.project))
 
 
 def list(args):
     with Config(save=False) as config:
         for project in config['projects']:
-            print project
+            print(project)
 
 
 def dump(args):
@@ -99,8 +97,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Time Tracker')
 
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help='no output')
+    parser.add_argument('-q', '--quiet', action='store_true', help='no output')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='extra output')
 
