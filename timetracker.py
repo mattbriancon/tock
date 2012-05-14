@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime
 import json
 import os
+from pprint import pprint
 
 
 _CONFIG = os.path.expanduser('~/.timetracker')
@@ -84,8 +85,13 @@ def rm(args):
 
 def list(args):
     with Config(save=False) as config:
-        for args.project in config['projects']:
-            print args.project
+        for project in config['projects']:
+            print project
+
+
+def dump(args):
+    with Config(save=False) as config:
+        pprint(config)
 
 
 if __name__ == '__main__':
@@ -114,6 +120,9 @@ if __name__ == '__main__':
 
     p_list = subparsers.add_parser('list', help='list all projects')
     p_list.set_defaults(func=list)
+
+    p_dump = subparsers.add_parser('dump', help='dump contents of config')
+    p_dump.set_defaults(func=dump)
 
     args = parser.parse_args()
     args.func(args)
