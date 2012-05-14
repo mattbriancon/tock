@@ -6,14 +6,10 @@ import json
 import os
 
 
-_CONFIG = os.path.expanduser('~/.time-tracker')
+_CONFIG = os.path.expanduser('~/.timetracker')
 _DEFAULT_CONFIG = {
     'projects': {}
 }
-
-QUIET = False
-VERBOSE = False
-FORCE = False
 
 
 class Config(object):
@@ -30,7 +26,7 @@ class Config(object):
         return self.config
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if VERBOSE:
+        if False:
             print self.config
 
         if self.save:
@@ -38,79 +34,86 @@ class Config(object):
                 json.dump(self.config, cf)
 
 
-def start(project):
+def start(args):
 
     def new_start():
         return {'start': str(datetime.now())}
 
     with Config() as config:
-        if project in config['projects']:
-            last = config['projects'][project][-1]
-            if not 'stop' in last:
-                print '{} in progress as of {}'.format(project, last['start'])
+        if args.project in config['projects']:
+            last = config['projects'][args.project][-1]
+            if not 'stop' in last and not args.quiet:
+                print '{} in progress as of {}'.format(args.project, last['start'])
             else:
-                config['projects'][project].append(new_start())
+                config['projects'][args.project].append(new_start())
         else:
-            config['projects'][project] = [new_start()]
-            print '{} (new) started'.format(project)
+            config['projects'][args.project] = [new_start()]
+            if not args.quiet:
+                print '{} (new) started'.format(args.project)
 
 
-def stop(project):
+def stop(args):
     with Config() as config:
-        if project in config['projects']:
-            last = config['projects'][project][-1]
-            if 'stop' in last:
-                print '{} stopped as of {}'.format(project, last['stop'])
+        if args.project in config['projects']:
+            last = config['projects'][args.project][-1]
+            if 'stop' in last and not args.quiet:
+                print '{} stopped as of {}'.format(args.project, last['stop'])
             else:
                 last['stop'] = str(datetime.now())
         else:
-            print 'No project {}'.format(project)
+            if not args.quiet:
+                print 'No project {}'.format(args.project)
 
 
-def rm(project):
+def rm(args):
     with Config() as config:
-        if project in config['projects']:
-            if not FORCE:
-                confirm = raw_input('Remove project \'{}\'? (yes/no) '.format(project))
+        if args.project in config['projects']:
+            if not args.force:
+                confirm = raw_input('Remove project \'{}\'? (yes/no) '.format(args.project))
                 if not confirm == 'yes':
                     print 'Aborted.'
                     return
 
-            del config['projects'][project]
-            print 'Deleted project {}'.format(project)
+            del config['projects'][args.project]
+            if not args.quiet:
+                print 'Deleted project {}'.format(args.project)
         else:
-            print 'No project {}'.format(project)
+            if not args.quiet:
+                print 'No project {}'.format(args.project)
 
 
-def list(project):
+def list(args):
     with Config(save=False) as config:
-        for project in config['projects']:
-            print project
+        for args.project in config['projects']:
+            print args.project
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Time Tracker')
 
-    parser.add_argument('command', type=str, help='start|stop|list|rm')
-    parser.add_argument('project', type=str,
-                        help='the project to interact with')
-    parser.add_argument('-f', '--force', action='store_true',
-                        help='do not prompt')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='no output')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='extra output')
 
-    args = parser.parse_args()
-    FORCE = args.force
-    QUIET = args.quiet
-    VERBOSE = args.verbose
+    subparsers = parser.add_subparsers(title='commands')
 
-    commands = {
-            'start': start,
-            'stop': stop,
-            'rm': rm,
-            'list': list,
-    }
-    commands[args.command](args.project)
+    p_start = subparsers.add_parser('start', help='start tracking a project')
+    p_start.add_argument('project', help='target (or new) project')
+    p_start.set_defaults(func=start)
+
+    p_stop = subparsers.add_parser('stop', help='stop tracking a project')
+    p_stop.add_argument('project', help='target project')
+    p_stop.set_defaults(func=stop)
+
+    p_rm = subparsers.add_parser('rm', help='delete a project')
+    p_rm.add_argument('project', help='target project')
+    p_rm.add_argument('-f', '--force', action='store_true', help='do no prompt')
+    p_rm.set_defaults(func=rm)
+
+    p_list = subparsers.add_parser('list', help='list all projects')
+    p_list.set_defaults(func=list)
+
+    args = parser.parse_args()
+    args.func(args)
