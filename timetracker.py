@@ -1,96 +1,221 @@
 #!/usr/local/bin/python2.7
 
 import argparse
-from datetime import datetime
+from collections import OrderedDict
+from datetime import datetime, timedelta
 import json
+import logging
 import os
 from pprint import pprint
+# import xdg
 
 
 _CONFIG = os.path.expanduser('~/.timetracker')
-_DEFAULT_CONFIG = {
-    'projects': {}
-}
+
+logger = logging.getLogger('timetracker')
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.INFO)
 
 
-class Config(object):
-    def __init__(self, save=True):
-        self.save = save
+def now():
+    return datetime.now().replace(microsecond=0)
 
-    def __enter__(self):
+
+def str_to_datetime(ts):
+    format = '%Y-%m-%dT%H:%M:%S'
+    return datetime.strptime(ts, format)
+
+
+def delta_to_str(delta):
+    hours = delta.days * 24 + delta.seconds / 3600
+    minutes = (delta.seconds % 60) / 60
+    seconds = delta.seconds % 60
+    return '{}h{}m{}s'.format(hours, minutes, seconds)
+
+
+class Project(object):
+
+    def __init__(self, name, sessions=None):
+        self.name = name
+        self.sessions = sessions or []
+
+        self._total = None
+
+    def start(self):
+        if not self.is_active:
+            self.sessions.append({'start': now()})
+        else:
+            start = self.sessions[-1]['start'].isoformat()
+            logger.warning('{} in progress as of {}'.format(self.name, start))
+
+    def stop(self):
+        if len(self.sessions) == 0:
+            logging.info('{} has never been started'.format(self.name))
+
+        last = self.sessions[-1]
+
+        if self.is_active:
+            last['stop'] = now()
+            last['duration'] = last['stop'] - last['start']
+        else:
+            stop = last['stop'].isoformat()
+            logging.info('{} has been inactive since {}'.format(self.name, stop))
+
+    @property
+    def total(self):
+        if not self.is_active and self._total:
+            return self._total
+
+        total = timedelta()
+
+        for session in self.sessions:
+            if 'duration' in session:
+                total += session['duration']
+            else:
+                total += now() - session['start']
+
+        self._total = total if not self.is_active else None
+
+        return total
+
+    @property
+    def is_active(self):
         try:
-            with open(_CONFIG) as cf:
-                self.config = json.load(cf)
+            return not 'stop' in self.sessions[-1]
         except:
-            self.config = _DEFAULT_CONFIG
+            return False
 
-        return self.config
+    @property
+    def current(self):
+        if self.is_active:
+            return now() - self.sessions[-1]['start']
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if False:
-            print(self.config)
+        return timedelta()
 
-        if self.save:
-            with open(_CONFIG, 'w') as cf:
-                json.dump(self.config, cf)
+
+class TimeTracker(object):
+
+    def __init__(self):
+        self.load_data()
+
+    def load_data(self):
+        try:
+            with open(_CONFIG, 'r') as cf:
+                self._raw_data = json.load(cf)
+        except:
+            self._raw_data = {'projects': {}}
+
+        self.projects = OrderedDict()
+        for name in self._raw_data['projects'].keys():
+
+            sessions = []
+            for session in self._raw_data['projects'][name]:
+
+                session['start'] = str_to_datetime(session['start'])
+
+                if 'stop' in session:
+                    session['stop'] = str_to_datetime(session['stop'])
+                    session['duration'] = timedelta(seconds=session['duration'])
+
+                sessions.append(session)
+
+            self.projects[name] = Project(name, sessions)
+
+    def save_data(self):
+        with open(_CONFIG, 'w') as cf:
+            data = {'projects': {}}
+            for project in self.projects.values():
+                sessions = []
+                for s in project.sessions:
+                    s_dump = {'start': s['start'].isoformat()}
+
+                    if 'stop' in s:
+                        s_dump['stop'] = s['stop'].isoformat()
+                        s_dump['duration'] = s['duration'].days * 24 * 60 * 60 + s['duration'].seconds
+
+                    sessions.append(s_dump)
+
+                data['projects'][project.name] = sessions
+
+            json.dump(data, cf)
+
+    # def _save(func):
+    #     def wrapped():
+    #         ret = func()
+    #         save()
+    #         return ret
+
+    #     return wrapped
+
+    # @save
+    def start(self, name):
+        try:
+            self.projects[name].start()
+        except KeyError:
+            p = Project(name)
+            p.start()
+            self.projects[name] = p
+            logging.info('created project \'{}\''.format(name))
+
+        self.save_data()
+
+    def stop(self, name):
+        try:
+            self.projects[name].stop()
+            self.save_data()
+        except KeyError:
+            logger.warning('no such project \'{}\''.format(name))
+
+    def delete(self, name):
+        del self.projects[name]
+        self.save_data()
 
 
 def start(args):
-
-    def new_start():
-        return {'start': str(datetime.now())}
-
-    with Config() as config:
-        if args.project in config['projects']:
-            last = config['projects'][args.project][-1]
-            if not 'stop' in last and not args.quiet:
-                print('{} in progress as of {}'.format(args.project,
-                                                       last['start']))
-            else:
-                config['projects'][args.project].append(new_start())
-        else:
-            config['projects'][args.project] = [new_start()]
-            if not args.quiet:
-                print('{} (new) started'.format(args.project))
+    tt = TimeTracker()
+    tt.start(args.project)
 
 
 def stop(args):
-    with Config() as config:
-        if args.project in config['projects']:
-            last = config['projects'][args.project][-1]
-            if 'stop' in last and not args.quiet:
-                print('{} stopped as of {}'.format(args.project, last['stop']))
-            else:
-                last['stop'] = str(datetime.now())
-        else:
-            if not args.quiet:
-                print('No project {}'.format(args.project))
+    tt = TimeTracker()
+    tt.stop(args.project)
 
 
 def rm(args):
-    with Config() as config:
-        if args.project in config['projects']:
-            if not args.force:
-                print('Must supply force argument (-f/--force) to delete')
-                return
+    if not args.force:
+        logger.info('must supply force argument (-f/--force) to delete')
+        return
 
-            del config['projects'][args.project]
-            if not args.quiet:
-                print('Deleted project {}'.format(args.project))
-        else:
-            if not args.quiet:
-                print('No project {}'.format(args.project))
+    tt = TimeTracker()
+    tt.delete()
 
 
 def list(args):
-    with Config(save=False) as config:
-        for project in config['projects']:
-            print(project)
+    tt = TimeTracker()
+
+    for project in tt.projects:
+        logger.info(project)
 
 
 def dump(args):
-    with Config(save=False) as config:
-        pprint(config)
+    tt = TimeTracker()
+    pprint(tt._raw_data)
+
+
+def status(args):
+    tt = TimeTracker()
+
+    prompt = []
+    for project in tt.projects.values():
+        if project.is_active:
+            prompt.append('{project} T: {total} C: {current}'.format(**{
+                'project': project.name,
+                'total': delta_to_str(project.total),
+                'current': delta_to_str(project.current),
+            }))
+
+    if len(prompt) > 0:
+        print '[', ', '.join(prompt), ']'
 
 
 if __name__ == '__main__':
@@ -120,8 +245,11 @@ if __name__ == '__main__':
     p_list = subparsers.add_parser('list', help='list all projects')
     p_list.set_defaults(func=list)
 
-    p_dump = subparsers.add_parser('dump', help='dump contents of config')
+    p_dump = subparsers.add_parser('dump', help='dump data')
     p_dump.set_defaults(func=dump)
+
+    subparsers.add_parser('status', help='status') \
+            .set_defaults(func=status)
 
     args = parser.parse_args()
     args.func(args)
