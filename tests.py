@@ -123,5 +123,29 @@ class ProjectTest(unittest.TestCase):
             self.assertEqual(timedelta(seconds=8 * 60 * 60), self.p.total)
 
 
+class UtilTest(unittest.TestCase):
+
+    def test_now(self):
+        self.assertEqual(0, timetracker.now().microsecond)
+
+    def test_str_datetime(self):
+        from timetracker import str_to_datetime
+
+        d = '2012-12-24T13:45:09'
+        self.assertEqual(datetime(2012, 12, 24, 13, 45, 9), str_to_datetime(d))
+
+        d = '2010-05-11T05:12:59'
+        self.assertEqual(datetime(2010, 5, 11, 5, 12, 59), str_to_datetime(d))
+
+    def test_delta_to_str(self):
+        from timetracker import delta_to_str
+
+        d = timedelta(seconds=4 * 3600 + 50 * 60 + 25)
+        self.assertEqual('4h50m25s', delta_to_str(d))
+
+        d = timedelta(days=2, seconds=6 * 3600 + 27 * 60 + 59)
+        self.assertEqual('54h27m59s', delta_to_str(d))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -28,7 +28,7 @@ def str_to_datetime(ts):
 
 def delta_to_str(delta):
     hours = delta.days * 24 + delta.seconds / 3600
-    minutes = (delta.seconds % 60) / 60
+    minutes = delta.seconds % 3600 / 60
     seconds = delta.seconds % 60
     return '{}h{}m{}s'.format(hours, minutes, seconds)
 
