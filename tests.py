@@ -7,21 +7,21 @@ import os
 import tempfile
 import unittest
 
-import timetracker
-from timetracker import Project
+import tock
+from tock import Project
 
-timetracker.logger.setLevel(logging.INFO)
+tock.logger.setLevel(logging.INFO)
 
 
-class TimeTrackerTest(unittest.TestCase):
+class TimerTest(unittest.TestCase):
 
     def setUp(self):
-        self.default_config = timetracker._CONFIG
+        self.default_config = tock._CONFIG
         fd, path = tempfile.mkstemp()
         os.close(fd)
-        timetracker._CONFIG = path
+        tock._CONFIG = path
 
-        self.tt = timetracker.TimeTracker()
+        self.tt = tock.Timer()
 
     def test_create_default_data(self):
         self.assertTrue('projects' in self.tt._raw_data)
@@ -29,7 +29,7 @@ class TimeTrackerTest(unittest.TestCase):
     def test_save_changes(self):
         self.tt.start('new-project')
 
-        tt2 = timetracker.TimeTracker()
+        tt2 = tock.Timer()
         self.assertEqual(len(self.tt.projects), len(tt2.projects))
 
     def test_start(self):
@@ -40,15 +40,15 @@ class TimeTrackerTest(unittest.TestCase):
 
     def test_stop(self):
         mock_logger = MagicMock()
-        with patch('timetracker.logger', mock_logger):
+        with patch('tock.logger', mock_logger):
             self.tt.stop('new-project')
             mock_logger.warning.assert_call_with()
             args = mock_logger.warning.call_args[0][0]
             self.assertTrue('no such project' in args)
 
     def tearDown(self):
-        os.unlink(timetracker._CONFIG)
-        timetracker._CONFIG = self.default_config
+        os.unlink(tock._CONFIG)
+        tock._CONFIG = self.default_config
 
 
 class ProjectTest(unittest.TestCase):
@@ -58,7 +58,7 @@ class ProjectTest(unittest.TestCase):
 
     def test_start(self):
         xmas_eve = datetime(2012, 12, 24)
-        with patch('timetracker.now', new=MagicMock(return_value=xmas_eve)):
+        with patch('tock.now', new=MagicMock(return_value=xmas_eve)):
             self.p.start()
             self.assertEqual(1, len(self.p.sessions))
             last = self.p.sessions[-1]
@@ -85,11 +85,11 @@ class ProjectTest(unittest.TestCase):
     def test_current(self):
         self.assertEqual(timedelta(), self.p.current)
 
-        with patch('timetracker.now',
+        with patch('tock.now',
                 new=MagicMock(return_value=datetime(2012, 12, 22))):
             self.p.start()
 
-        with patch('timetracker.now',
+        with patch('tock.now',
                 new=MagicMock(return_value=datetime(2012, 12, 24))):
             self.assertEqual(timedelta(days=2), self.p.current)
 
@@ -114,7 +114,7 @@ class ProjectTest(unittest.TestCase):
 
         self.assertEqual(timedelta(seconds=6 * 60 * 60), self.p.total)
 
-        with patch('timetracker.now',
+        with patch('tock.now',
                 new=MagicMock(return_value=datetime(2012, 12, 23, 14))):
             self.p.sessions.append({
                     'start': datetime(2012, 12, 23, 12),
@@ -126,10 +126,10 @@ class ProjectTest(unittest.TestCase):
 class UtilTest(unittest.TestCase):
 
     def test_now(self):
-        self.assertEqual(0, timetracker.now().microsecond)
+        self.assertEqual(0, tock.now().microsecond)
 
     def test_str_datetime(self):
-        from timetracker import str_to_datetime
+        from tock import str_to_datetime
 
         d = '2012-12-24T13:45:09'
         self.assertEqual(datetime(2012, 12, 24, 13, 45, 9), str_to_datetime(d))
@@ -138,7 +138,7 @@ class UtilTest(unittest.TestCase):
         self.assertEqual(datetime(2010, 5, 11, 5, 12, 59), str_to_datetime(d))
 
     def test_delta_to_str(self):
-        from timetracker import delta_to_str
+        from tock import delta_to_str
 
         d = timedelta(seconds=4 * 3600 + 50 * 60 + 25)
         self.assertEqual('4h50m25s', delta_to_str(d))

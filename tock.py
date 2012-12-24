@@ -10,9 +10,9 @@ from pprint import pprint
 # import xdg
 
 
-_CONFIG = os.path.expanduser('~/.timetracker')
+_CONFIG = os.path.expanduser('~/.tock')
 
-logger = logging.getLogger('timetracker')
+logger = logging.getLogger('tock')
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
@@ -93,7 +93,7 @@ class Project(object):
         return timedelta()
 
 
-class TimeTracker(object):
+class Timer(object):
 
     def __init__(self):
         self.load_data()
@@ -172,12 +172,12 @@ class TimeTracker(object):
 
 
 def start(args):
-    tt = TimeTracker()
+    tt = Timer()
     tt.start(args.project)
 
 
 def stop(args):
-    tt = TimeTracker()
+    tt = Timer()
     tt.stop(args.project)
 
 
@@ -186,24 +186,24 @@ def rm(args):
         logger.info('must supply force argument (-f/--force) to delete')
         return
 
-    tt = TimeTracker()
+    tt = Timer()
     tt.delete()
 
 
 def list(args):
-    tt = TimeTracker()
+    tt = Timer()
 
     for project in tt.projects:
         logger.info(project)
 
 
 def dump(args):
-    tt = TimeTracker()
+    tt = Timer()
     pprint(tt._raw_data)
 
 
 def status(args):
-    tt = TimeTracker()
+    tt = Timer()
 
     prompt = []
     for project in tt.projects.values():
@@ -220,7 +220,7 @@ def status(args):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Time Tracker')
+    parser = argparse.ArgumentParser(description='tock: a simple task timer')
 
     parser.add_argument('-q', '--quiet', action='store_true', help='no output')
     parser.add_argument('-v', '--verbose', action='store_true',
